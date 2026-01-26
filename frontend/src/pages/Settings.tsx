@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 
 const sections = [
   { id: "account", label: "Account", icon: User },
@@ -99,9 +100,7 @@ const Settings = () => {
 
   const handleLogout = async () => {
     try {
-      const { error } = await import("@/lib/supabase").then(({ supabase }) => 
-        supabase.auth.signOut()
-      );
+      const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
       toast({
