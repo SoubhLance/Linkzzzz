@@ -1,417 +1,561 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Link2, FileText, Image, Star, FolderOpen, ArrowRight, Sparkles, Zap, TrendingUp, Users, Shield, Clock, CheckCircle, ChevronRight, Globe, Rocket, Target } from "lucide-react";
-import Logo from "@/components/Logo";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Link, Brain, FileText, Image, Zap, Search, Shield, Cloud } from 'lucide-react';
+import { BackgroundRippleEffect } from '@/components/ui/background-ripple-effect';
+import ScrollAnimation from '@/components/ScrollAnimation';
+import AuthModal from '@/components/AuthModal';
+import Loader from '@/components/Loader';
+import { Button } from '@/components/ui/button';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 
 const features = [
   {
-    icon: Link2,
-    title: "Smart Links",
-    description: "Intelligent link organization",
-    color: "text-primary",
-    bgColor: "bg-primary/10",
+    icon: Link,
+    title: 'Save Links',
+    description: 'Capture any URL with a click. Never lose an important article or resource again.',
+    color: 'from-blue-500 to-cyan-500',
   },
   {
     icon: FileText,
-    title: "Notes",
-    description: "Capture and organize ideas",
-    color: "text-secondary",
-    bgColor: "bg-secondary/10",
+    title: 'Quick Notes',
+    description: 'Jot down thoughts and snippets instantly. Your ideas, always within reach.',
+    color: 'from-green-500 to-emerald-500',
   },
   {
     icon: Image,
-    title: "Images",
-    description: "Store and tag visual content",
-    color: "text-amber-400",
-    bgColor: "bg-amber-400/10",
+    title: 'Image Library',
+    description: 'Store and organize images. Visual inspiration at your fingertips.',
+    color: 'from-pink-500 to-rose-500',
   },
   {
-    icon: Star,
-    title: "Starred",
-    description: "Priority content system",
-    color: "text-star",
-    bgColor: "bg-star/10",
+    icon: Search,
+    title: 'Instant Search',
+    description: 'Find anything in seconds. Powerful search across all your saved content.',
+    color: 'from-purple-500 to-indigo-500',
   },
   {
-    icon: FolderOpen,
-    title: "Categories",
-    description: "Flexible organization",
-    color: "text-muted-foreground",
-    bgColor: "bg-muted",
+    icon: Zap,
+    title: 'Smart Categories',
+    description: 'Auto-organize with intelligent tagging. Less effort, more structure.',
+    color: 'from-yellow-500 to-orange-500',
+  },
+  {
+    icon: Cloud,
+    title: 'Always Synced',
+    description: 'Access from anywhere. Your data follows you across all devices.',
+    color: 'from-cyan-500 to-blue-500',
+  },
+  {
+    icon: Shield,
+    title: 'Private & Secure',
+    description: 'Your data stays yours. End-to-end privacy, no compromises.',
+    color: 'from-red-500 to-pink-500',
+  },
+  {
+    icon: Brain,
+    title: 'Your Second Brain',
+    description: 'Build your personal knowledge base. Connect ideas like never before.',
+    color: 'from-orange-500 to-amber-500',
   },
 ];
 
-const stats = [
-  { label: "Active Users", value: "50K+", icon: Users },
-  { label: "Links Saved", value: "10M+", icon: TrendingUp },
-  { label: "Uptime", value: "99.9%", icon: Shield },
-  { label: "Save Time", value: "10hrs/week", icon: Clock },
-];
-
-const testimonials = [
-  {
-    quote: "Linkzzz transformed how I organize my digital life. The intuitive features are amazing!",
-    author: "Sarah Chen",
-    role: "Product Manager @ TechCorp",
-  },
-  {
-    quote: "From chaotic bookmarks to a structured second brain. Game changer!",
-    author: "Marcus Johnson",
-    role: "Developer @ StartupXYZ",
-  },
-  {
-    quote: "The organization features save me hours every week. Essential tool.",
-    author: "Elena Rodriguez",
-    role: "Researcher @ University",
-  },
-];
-
-const Landing = () => {
-  const navigate = useNavigate();
-  const { session, loading } = useAuth();
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [smoothedPosition, setSmoothedPosition] = useState({ x: 0, y: 0 });
-  const [isMoving, setIsMoving] = useState(false);
-  const animationRef = useRef<number>();
-  const lastMouseMoveTime = useRef<number>(Date.now());
-  const isMobile = useRef(false);
-
-  // Redirect to dashboard if already logged in
-  useEffect(() => {
-    if (session) {
-      navigate("/dashboard");
-    }
-  }, [session, navigate]);
-
-  // Smooth interpolation for mouse position
-  const lerp = (start: number, end: number, factor: number) => {
-    return start * (1 - factor) + end * factor;
-  };
+const Landing: React.FC = () => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  
+  const heroRef = useRef<HTMLDivElement>(null);
+  const featuresRef = useRef<HTMLDivElement>(null);
+  const featureCardsRef = useRef<HTMLDivElement[]>([]);
+  const ctaRef = useRef<HTMLDivElement>(null);
+  const statsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Check if mobile
-    isMobile.current = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const timer = setTimeout(() => setIsLoading(false), 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
-    if (isMobile.current) {
-      return; // Disable on mobile
+  useEffect(() => {
+    if (isLoading) return;
+
+    // Hero parallax effect
+    if (heroRef.current) {
+      gsap.to(heroRef.current.querySelector('.hero-content'), {
+        scrollTrigger: {
+          trigger: heroRef.current,
+          start: 'top top',
+          end: 'bottom top',
+          scrub: 1,
+        },
+        y: 100,
+        opacity: 0.3,
+      });
+
+      // Hero title word animation
+      const heroTitle = heroRef.current.querySelector('.hero-title');
+      if (heroTitle) {
+        const words = heroTitle.querySelectorAll('.word');
+        gsap.from(words, {
+          scrollTrigger: {
+            trigger: heroTitle,
+            start: 'top 80%',
+          },
+          y: 100,
+          opacity: 0,
+          rotateX: -90,
+          stagger: 0.1,
+          duration: 1,
+          ease: 'back.out(1.7)',
+        });
+      }
     }
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const now = Date.now();
-      setMousePosition({ x: e.clientX, y: e.clientY });
-      setIsMoving(true);
-      lastMouseMoveTime.current = now;
+    // Stats section animations
+    if (statsRef.current) {
+      // Stats counter animation
+      const stats = statsRef.current.querySelectorAll('.stat-number');
+      stats.forEach((stat) => {
+        const target = parseInt(stat.getAttribute('data-target') || '0');
+        gsap.from(stat, {
+          scrollTrigger: {
+            trigger: stat,
+            start: 'top 80%',
+          },
+          textContent: 0,
+          duration: 2,
+          ease: 'power1.out',
+          snap: { textContent: 1 },
+          scale: 0.5,
+          opacity: 0,
+          onUpdate: function() {
+            const currentValue = Math.ceil(parseFloat(this.targets()[0].textContent as string));
+            stat.textContent = currentValue.toString();
+          }
+        });
+      });
 
-      // Set timer to detect when mouse stops
-      setTimeout(() => {
-        if (Date.now() - lastMouseMoveTime.current > 100) {
-          setIsMoving(false);
+      // Stats card pop in
+      const statCards = statsRef.current.querySelectorAll('.stat-card');
+      gsap.from(statCards, {
+        scrollTrigger: {
+          trigger: statsRef.current,
+          start: 'top 70%',
+        },
+        scale: 0.5,
+        opacity: 0,
+        y: 50,
+        stagger: 0.15,
+        duration: 0.8,
+        ease: 'back.out(1.7)',
+      });
+    }
+
+    // Features section title animation
+    if (featuresRef.current) {
+      const featuresTitle = featuresRef.current.querySelector('.features-title');
+      if (featuresTitle) {
+        gsap.from(featuresTitle, {
+          scrollTrigger: {
+            trigger: featuresTitle,
+            start: 'top 80%',
+          },
+          scale: 0.8,
+          opacity: 0,
+          y: 50,
+          duration: 1,
+          ease: 'elastic.out(1, 0.75)',
+        });
+      }
+
+      const featuresSubtitle = featuresRef.current.querySelector('.features-subtitle');
+      if (featuresSubtitle) {
+        gsap.from(featuresSubtitle, {
+          scrollTrigger: {
+            trigger: featuresSubtitle,
+            start: 'top 80%',
+          },
+          x: -100,
+          opacity: 0,
+          duration: 1,
+          ease: 'power3.out',
+        });
+      }
+    }
+
+    // Feature cards stagger animation with rotation
+    if (featureCardsRef.current.length > 0) {
+      gsap.from(featureCardsRef.current, {
+        scrollTrigger: {
+          trigger: featuresRef.current,
+          start: 'top 50%',
+        },
+        y: 100,
+        opacity: 0,
+        rotation: -5,
+        stagger: 0.12,
+        duration: 0.8,
+        ease: 'back.out(1.4)',
+      });
+
+      // Feature card icons pop
+      featureCardsRef.current.forEach((card, index) => {
+        const icon = card.querySelector('.feature-icon');
+        if (icon) {
+          gsap.from(icon, {
+            scrollTrigger: {
+              trigger: card,
+              start: 'top 75%',
+            },
+            scale: 0,
+            rotation: 180,
+            duration: 0.6,
+            delay: index * 0.1,
+            ease: 'back.out(2)',
+          });
         }
-      }, 100);
-    };
 
-    // Animation loop for smooth interpolation
-    const animate = () => {
-      setSmoothedPosition(prev => ({
-        x: lerp(prev.x, mousePosition.x, 0.08),
-        y: lerp(prev.y, mousePosition.y, 0.08),
-      }));
-      animationRef.current = requestAnimationFrame(animate);
-    };
+        // Hover animations for feature cards
+        card.addEventListener('mouseenter', () => {
+          gsap.to(card, {
+            y: -10,
+            scale: 1.02,
+            duration: 0.3,
+            ease: 'power2.out',
+          });
+        });
+        card.addEventListener('mouseleave', () => {
+          gsap.to(card, {
+            y: 0,
+            scale: 1,
+            duration: 0.3,
+            ease: 'power2.out',
+          });
+        });
+      });
+    }
 
-    window.addEventListener('mousemove', handleMouseMove);
-    animationRef.current = requestAnimationFrame(animate);
+    // CTA section animations
+    if (ctaRef.current) {
+      // CTA container
+      gsap.from(ctaRef.current, {
+        scrollTrigger: {
+          trigger: ctaRef.current,
+          start: 'top 70%',
+        },
+        scale: 0.9,
+        opacity: 0,
+        duration: 1,
+        ease: 'back.out(1.4)',
+      });
+
+      // CTA title words
+      const ctaTitle = ctaRef.current.querySelector('.cta-title');
+      if (ctaTitle) {
+        const words = ctaTitle.querySelectorAll('.word');
+        gsap.from(words, {
+          scrollTrigger: {
+            trigger: ctaTitle,
+            start: 'top 80%',
+          },
+          y: 50,
+          opacity: 0,
+          rotateY: 90,
+          stagger: 0.08,
+          duration: 0.8,
+          ease: 'back.out(1.7)',
+        });
+      }
+
+      // CTA button
+      const ctaButton = ctaRef.current.querySelector('.cta-button');
+      if (ctaButton) {
+        gsap.from(ctaButton, {
+          scrollTrigger: {
+            trigger: ctaButton,
+            start: 'top 85%',
+          },
+          scale: 0,
+          rotation: 360,
+          duration: 1,
+          ease: 'elastic.out(1, 0.5)',
+        });
+      }
+    }
+
+    // Floating animation for hero badge
+    gsap.to('.hero-badge', {
+      y: -10,
+      duration: 2,
+      ease: 'power1.inOut',
+      repeat: -1,
+      yoyo: true,
+    });
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
+      ScrollTrigger.getAll().forEach(trigger => trigger.kill());
     };
-  }, [mousePosition]);
+  }, [isLoading]);
+
+  const openAuth = (mode: 'signin' | 'signup') => {
+    setAuthMode(mode);
+    setIsAuthOpen(true);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col overflow-hidden relative">
-      {/* Subtle Orange Glow Effect */}
-      {!isMobile.current && (
-        <div 
-          className="fixed inset-0 pointer-events-none z-0 transition-opacity duration-700"
-          style={{
-            opacity: isMoving ? 0.04 : 0.02,
-            background: `radial-gradient(600px at ${smoothedPosition.x}px ${smoothedPosition.y}px, 
-              rgba(var(--primary-rgb), 0.1) 0%, 
-              transparent 80%)`,
-            transition: 'opacity 0.7s ease-out',
-          }}
-        />
-      )}
+    <div className="min-h-screen bg-background overflow-x-hidden">
+      {/* Navigation */}
+      <motion.nav
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl"
+      >
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center shadow-glow-sm">
+              <span className="text-primary-foreground font-bold text-lg">L</span>
+            </div>
+            <span className="font-bold text-xl text-foreground">Linkzzzz</span>
+          </div>
 
-      {/* Existing background elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div 
-          className="absolute top-1/4 -left-20 w-72 h-72 bg-primary/5 rounded-full blur-3xl animate-pulse"
-          style={{
-            animationDelay: '1s',
-          }}
-        />
-        <div 
-          className="absolute bottom-1/4 -right-20 w-96 h-96 bg-secondary/5 rounded-full blur-3xl animate-pulse"
-          style={{
-            animationDelay: '2s',
-          }}
-        />
-      </div>
-
-      {/* Header */}
-      <header className="w-full py-6 px-6 sm:px-12 relative z-50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Logo size="md" />
-          <div className="flex items-center gap-4">
-            <Link to="/features">
-              <Button variant="ghost" className="text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-all duration-300">
-                Features
-              </Button>
-            </Link>
-            {!loading && (
-              <Link to="/auth">
-                <Button 
-                  variant="default" 
-                  className="relative overflow-hidden group bg-primary hover:bg-primary-glow text-primary-foreground px-6"
-                >
-                  <span className="relative z-10 flex items-center gap-2">
-                    Sign In
-                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </span>
-                  <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary/80 to-primary transform translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
-                </Button>
-              </Link>
-            )}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => openAuth('signin')}
+              className="text-foreground hover:text-primary"
+            >
+              Sign In
+            </Button>
+            <Button
+              onClick={() => openAuth('signup')}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow-sm"
+            >
+              Get Started
+            </Button>
           </div>
         </div>
-      </header>
+      </motion.nav>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-16 sm:py-24 relative z-40">
-        <div className="max-w-6xl mx-auto text-center space-y-6">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4 animate-bounce-slow">
-            <Rocket className="w-4 h-4" />
-            Join 50,000+ productive individuals
-          </div>
+      <section ref={heroRef} className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-16">
+        <BackgroundRippleEffect />
+        
+        <div className="hero-content relative z-10 container mx-auto px-4 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="max-w-4xl mx-auto"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5 }}
+              className="hero-badge inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-8"
+            >
+              <Brain className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-primary">100% Free Forever</span>
+            </motion.div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-foreground leading-tight tracking-tighter">
-            Your Personal{" "}
-            <span className="text-primary relative">
-              Second Brain
-              <span className="absolute -bottom-2 left-0 w-full h-1 bg-primary/20 transform -rotate-1" />
-            </span>{" "}
-            for the Digital Age
-          </h1>
-          
-          <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            Linkzzz is the ultimate platform that helps professionals collect, 
-            organize, and retrieve knowledge with{" "}
-            <span className="text-primary font-semibold">intuitive organization</span>. 
-            Transform chaos into clarity.
-          </p>
+            <h1 className="hero-title text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-foreground mb-6 leading-tight">
+              <span className="word inline-block">Your</span>{' '}
+              <span className="word inline-block">Personal</span>{' '}
+              <span className="word text-gradient-primary inline-block">Second</span>{' '}
+              <span className="word text-gradient-primary inline-block">Brain</span>
+            </h1>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
-            <Link to="/auth" className="group">
-              <Button 
-                size="lg" 
-                className="gap-3 px-8 py-7 text-base font-semibold bg-primary hover:bg-primary-glow text-primary-foreground relative overflow-hidden group"
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
+              Save links, notes, and images — organized, searchable, and always yours.
+              No more messy bookmarks. No more forgotten notes. Just one brain for your digital life.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button
+                size="lg"
+                onClick={() => openAuth('signup')}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow px-8 py-6 text-lg font-semibold rounded-xl transform hover:scale-105 transition-transform"
               >
-                <span className="relative z-10 flex items-center">
-                  Get Started Free
-                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                </span>
-                <span className="absolute inset-0 bg-gradient-to-r from-primary via-primary/90 to-primary transform -translate-x-full group-hover:translate-x-0 transition-transform duration-700" />
+                Get Started — It's Free
               </Button>
-            </Link>
-          </div>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => openAuth('signin')}
+                className="border-border text-foreground hover:bg-accent px-8 py-6 text-lg rounded-xl transform hover:scale-105 transition-transform"
+              >
+                Sign In
+              </Button>
+            </div>
+          </motion.div>
+        </div>
 
-          {/* Trust Badges */}
-          <div className="pt-8 flex flex-wrap justify-center items-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-500" />
-              No credit card required
+        {/* Scroll indicator */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.5 }}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2"
+        >
+          <div className="w-6 h-10 rounded-full border-2 border-muted-foreground/30 flex items-start justify-center p-2">
+            <motion.div
+              animate={{ y: [0, 12, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="w-1.5 h-1.5 rounded-full bg-primary"
+            />
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Stats Section */}
+      <section ref={statsRef} className="py-20 bg-gradient-to-b from-background to-background/50 relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div className="stat-card text-center p-6 rounded-2xl bg-card/50 backdrop-blur border border-border/50">
+              <div className="stat-number text-5xl md:text-6xl font-bold text-gradient-primary mb-2" data-target="10000">0</div>
+              <div className="text-muted-foreground text-sm uppercase tracking-wider">Active Users</div>
             </div>
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-blue-500" />
-              Enterprise-grade security
+            <div className="stat-card text-center p-6 rounded-2xl bg-card/50 backdrop-blur border border-border/50">
+              <div className="stat-number text-5xl md:text-6xl font-bold text-gradient-primary mb-2" data-target="50000">0</div>
+              <div className="text-muted-foreground text-sm uppercase tracking-wider">Links Saved</div>
             </div>
-            <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-purple-500" />
-              Global infrastructure
+            <div className="stat-card text-center p-6 rounded-2xl bg-card/50 backdrop-blur border border-border/50">
+              <div className="stat-number text-5xl md:text-6xl font-bold text-gradient-primary mb-2" data-target="99">0</div>
+              <div className="text-muted-foreground text-sm uppercase tracking-wider">% Uptime</div>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Feature Highlights */}
-        <div className="mt-20 sm:mt-28 w-full max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-              Everything You Need in One Platform
+      {/* Scroll Animation Section */}
+      <ScrollAnimation />
+
+      {/* Features Section */}
+      <section ref={featuresRef} className="py-24 bg-gradient-to-b from-background to-surface-sunken relative">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="text-center mb-20">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="inline-block px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6"
+            >
+              <span className="text-sm font-medium text-primary">Powerful Features</span>
+            </motion.div>
+            <h2 className="features-title text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6">
+              Everything You Need
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Designed to make your workflow smarter and more efficient
+            <p className="features-subtitle text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+              A smart personal organizer that helps you save, categorize, and instantly find
+              everything you care about on the internet.
             </p>
           </div>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
-              <div
-                key={feature.title}
-                className="flex flex-col items-center text-center p-6 rounded-2xl bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 hover:-translate-y-2 animate-float group"
-                style={{
-                  animationDelay: `${index * 150}ms`,
-                  animationDuration: `${3 + index * 0.5}s`,
-                }}
-              >
-                <div className={`p-4 rounded-2xl ${feature.bgColor} mb-5 transform group-hover:scale-110 transition-transform duration-300`}>
-                  <Icon className={`w-7 h-7 ${feature.color}`} />
+                <div
+                  key={feature.title}
+                  ref={(el) => {
+                    if (el) featureCardsRef.current[index] = el;
+                  }}
+                  className="group relative"
+                >
+                  <div className="h-full p-8 rounded-2xl bg-card border border-border hover:border-primary/30 transition-all duration-300 card-glow relative overflow-hidden">
+                    {/* Gradient overlay on hover */}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
+                    
+                    <div className={`feature-icon w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg relative z-10`}>
+                      <Icon className="w-7 h-7 text-white" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-foreground mb-3 relative z-10">
+                      {feature.title}
+                    </h3>
+                    <p className="text-muted-foreground leading-relaxed relative z-10">
+                      {feature.description}
+                    </p>
+                  </div>
                 </div>
-                <h3 className="font-bold text-lg text-foreground mb-2">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground">{feature.description}</p>
-                <div className="mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <ChevronRight className="w-4 h-4 text-primary" />
-                </div>
-              </div>
               );
             })}
           </div>
         </div>
+      </section>
 
-        {/* Stats Section */}
-        <div className="mt-32 w-full max-w-6xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {stats.map((stat, index) => {
-              const Icon = stat.icon;
-              return (
-              <div 
-                key={stat.label}
-                className="text-center p-6 rounded-2xl bg-card/30 backdrop-blur-sm border border-border/30 hover:bg-card/50 transition-all duration-300 animate-fade-in-up"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <Icon className="w-8 h-8 text-primary mx-auto mb-4" />
-                <div className="text-3xl font-bold text-foreground mb-2">{stat.value}</div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
-              </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Testimonials */}
-        <div className="mt-32 w-full max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-              Trusted by Professionals Worldwide
+      {/* CTA Section */}
+      <section className="py-32 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div
+            ref={ctaRef}
+            className="max-w-4xl mx-auto text-center"
+          >
+            <div className="inline-block px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
+              <span className="text-sm font-medium text-primary">Join Today</span>
+            </div>
+            <h2 className="cta-title text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
+              <span className="word inline-block">Ready</span>{' '}
+              <span className="word inline-block">to</span>{' '}
+              <span className="word inline-block">Organize</span>{' '}
+              <span className="word inline-block">Your</span>{' '}
+              <span className="word inline-block">Digital</span>{' '}
+              <span className="word inline-block">Life?</span>
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              See what our users are saying about their experience
+            <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
+              Join thousands of people who've already simplified their digital workflow.
+              Start for free, no credit card required.
             </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((testimonial, index) => (
-              <div
-                key={testimonial.author}
-                className="p-6 rounded-2xl bg-card border border-border hover:border-primary/20 hover:shadow-xl transition-all duration-300 animate-fade-in"
-                style={{ animationDelay: `${index * 200}ms` }}
-              >
-                <div className="text-foreground/80 mb-4 italic">"{testimonial.quote}"</div>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-primary font-bold">
-                      {testimonial.author.charAt(0)}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-foreground">{testimonial.author}</div>
-                    <div className="text-sm text-muted-foreground">{testimonial.role}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Final CTA */}
-        <div className="mt-32 w-full max-w-4xl mx-auto text-center p-8 rounded-3xl bg-card/50 backdrop-blur-sm border border-border/50 relative overflow-hidden group hover:border-primary/30 transition-all duration-500">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-32 translate-x-32 blur-3xl" />
-          
-          <Sparkles className="w-12 h-12 text-primary mx-auto mb-6 animate-pulse" />
-          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-            Ready to Organize Your Digital Life?
-          </h2>
-          <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join thousands of professionals who have transformed their workflow with Linkzzz
-          </p>
-          <Link to="/auth">
-            <Button 
-              size="lg" 
-              className="gap-3 px-10 py-8 text-lg font-bold bg-primary hover:bg-primary-glow text-primary-foreground relative overflow-hidden group"
+            <Button
+              size="lg"
+              onClick={() => openAuth('signup')}
+              className="cta-button bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow px-12 py-7 text-xl font-semibold rounded-xl transform hover:scale-105 transition-transform"
             >
-              <Zap className="w-5 h-5" />
-              Get Started Free Today
-              <Target className="w-5 h-5" />
+              Start Organizing Now
             </Button>
-          </Link>
-          <p className="text-sm text-muted-foreground mt-4">
-            No credit card required • 24/7 support
-          </p>
+          </div>
         </div>
-      </main>
+      </section>
 
       {/* Footer */}
-      <footer className="py-8 px-6 border-t border-border/50 relative z-40 mt-20">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <Logo size="md" />
-              <p className="text-muted-foreground mt-4">
-                Your second brain for the digital age.
-              </p>
+      <footer className="py-12 border-t border-border bg-surface-sunken">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center">
+                <span className="text-primary-foreground font-bold">L</span>
+              </div>
+              <span className="font-bold text-lg text-foreground">Linkzzzz</span>
             </div>
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Product</h4>
-              <ul className="space-y-2">
-                <li><Link to="/features" className="text-muted-foreground hover:text-foreground transition-colors">Features</Link></li>
-                <li><Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</Link></li>
-                <li><Link to="/integrations" className="text-muted-foreground hover:text-foreground transition-colors">Integrations</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Company</h4>
-              <ul className="space-y-2">
-                <li><Link to="/about" className="text-muted-foreground hover:text-foreground transition-colors">About</Link></li>
-                <li><Link to="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</Link></li>
-                <li><Link to="/careers" className="text-muted-foreground hover:text-foreground transition-colors">Careers</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Legal</h4>
-              <ul className="space-y-2">
-                <li><Link to="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">Privacy</Link></li>
-                <li><Link to="/terms" className="text-muted-foreground hover:text-foreground transition-colors">Terms</Link></li>
-                <li><Link to="/security" className="text-muted-foreground hover:text-foreground transition-colors">Security</Link></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="pt-8 border-t border-border/50 text-center">
-            <p className="text-sm text-muted-foreground">
-              © 2026 Linkzzz. Your personal second brain. All rights reserved.
+            <p className="text-muted-foreground text-sm">
+              ©Linkzzzz 2026 · Built with care for your digital life
             </p>
           </div>
         </div>
       </footer>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        mode={authMode}
+        onModeChange={setAuthMode}
+      />
     </div>
   );
 };
