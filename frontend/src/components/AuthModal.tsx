@@ -4,6 +4,8 @@ import { X, Mail, Lock, User, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -29,33 +31,69 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate auth - In production, this would connect to Supabase
-    setTimeout(() => {
+
+    try {
+      if (mode === 'signup') {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: name
+            }
+          }
+        });
+        if (error) throw error;
+        toast.success('Check your email for the confirmation link!');
+        onClose();
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        if (error) throw error;
+        toast.success('Signed in successfully!');
+        onClose();
+        navigate('/dashboard');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Authentication failed');
+    } finally {
       setIsLoading(false);
-      onClose();
-      navigate('/dashboard');
-    }, 1000);
+    }
   };
 
-  const handleOAuthLogin = (provider: 'google' | 'github') => {
+  const handleOAuthLogin = async (provider: 'google' | 'github') => {
     setIsLoading(true);
-    // Simulate OAuth - In production, this would connect to Supabase OAuth
-    setTimeout(() => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      toast.error(error.message || 'OAuth login failed');
       setIsLoading(false);
-      onClose();
-      navigate('/dashboard');
-    }, 1000);
+    }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate password reset
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+      if (error) throw error;
+      toast.success('Password reset link sent to your email!');
       setShowForgotPassword(false);
-    }, 1000);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send reset link');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

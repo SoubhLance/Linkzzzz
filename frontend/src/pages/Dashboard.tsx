@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Search,
   Plus,
@@ -119,16 +120,10 @@ const mockNotifications = [
   { title: 'Auto-organize', message: 'We categorized 5 new items', time: '1 hour ago' },
 ];
 
-// Mock user data
-const mockUser = {
-  name: 'John Doe',
-  email: 'john@example.com',
-  avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100',
-};
-
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user, isLoading: authLoading, signOut } = useAuth(true); // requireAuth = true
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -142,27 +137,35 @@ const Dashboard: React.FC = () => {
 
   const currentCategory = searchParams.get('category');
 
+  // Get user display info from auth
+  const userDisplayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+  const userEmail = user?.email || '';
+  const userAvatarUrl = user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=f97316&color=fff`;
+
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
+    // Only show loading briefly for UI transition, auth loading is handled by useAuth
+    if (!authLoading) {
+      const timer = setTimeout(() => setIsLoading(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [authLoading]);
 
   const filteredItems = items.filter((item) => {
     if (showStarred) {
-      const matchesSearch = !searchQuery || 
+      const matchesSearch = !searchQuery ||
         item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.description.toLowerCase().includes(searchQuery.toLowerCase());
       return item.starred && matchesSearch;
     }
     const matchesCategory = !currentCategory || item.category.toLowerCase() === currentCategory;
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
   const handleStarToggle = (itemId: string) => {
-    setItems(prev => prev.map(item => 
+    setItems(prev => prev.map(item =>
       item.id === itemId ? { ...item, starred: !item.starred } : item
     ));
   };
@@ -179,7 +182,7 @@ const Dashboard: React.FC = () => {
     navigate('/settings');
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader />
@@ -302,8 +305,8 @@ const Dashboard: React.FC = () => {
                 <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                   <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-primary/20">
                     <img
-                      src={mockUser.avatarUrl}
-                      alt={mockUser.name}
+                      src={userAvatarUrl}
+                      alt={userDisplayName}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -311,13 +314,13 @@ const Dashboard: React.FC = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-3 py-2 border-b border-border">
-                  <p className="font-medium text-foreground">{mockUser.name}</p>
-                  <p className="text-sm text-muted-foreground">{mockUser.email}</p>
+                  <p className="font-medium text-foreground">{userDisplayName}</p>
+                  <p className="text-sm text-muted-foreground">{userEmail}</p>
                 </div>
                 <DropdownMenuItem onClick={handleProfileClick}>
                   Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/')} className="text-destructive">
+                <DropdownMenuItem onClick={() => signOut()} className="text-destructive">
                   Sign Out
                 </DropdownMenuItem>
               </DropdownMenuContent>
