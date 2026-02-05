@@ -25,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
+import { getProfile, updateProfile } from '@/lib/profiles';
 import { toast } from 'sonner';
 
 
@@ -76,12 +77,29 @@ const Settings: React.FC = () => {
   const userCreatedAt = user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Unknown';
 
   useEffect(() => {
-    // Initialize form with user data once loaded
-    if (!authLoading && user) {
-      setDisplayName(user.user_metadata?.full_name || user.email?.split('@')[0] || '');
-      setAvatarUrl(user.user_metadata?.avatar_url || '');
-      setIsLoading(false);
-    }
+    // Initialize form with profile data from profiles table
+    const loadProfile = async () => {
+      if (!authLoading && user) {
+        try {
+          const profile = await getProfile();
+          if (profile) {
+            setDisplayName(profile.display_name || user.email?.split('@')[0] || '');
+            setAvatarUrl(profile.avatar_url || '');
+          } else {
+            // Fallback to user_metadata if no profile exists yet
+            setDisplayName(user.user_metadata?.full_name || user.email?.split('@')[0] || '');
+            setAvatarUrl(user.user_metadata?.avatar_url || '');
+          }
+        } catch (error) {
+          console.error('Error loading profile:', error);
+          // Fallback to user_metadata
+          setDisplayName(user.user_metadata?.full_name || user.email?.split('@')[0] || '');
+          setAvatarUrl(user.user_metadata?.avatar_url || '');
+        }
+        setIsLoading(false);
+      }
+    };
+    loadProfile();
   }, [authLoading, user]);
 
   useEffect(() => {
@@ -105,13 +123,11 @@ const Settings: React.FC = () => {
   const handleSaveChanges = async () => {
     setIsSaving(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          full_name: displayName,
-          avatar_url: avatarUrl || userAvatarUrl,
-        }
+      // Update the profiles table (persists across OAuth logins)
+      await updateProfile({
+        display_name: displayName,
+        avatar_url: avatarUrl || userAvatarUrl,
       });
-      if (error) throw error;
       toast.success('Profile updated successfully!');
       setShowSaved(true);
       setTimeout(() => setShowSaved(false), 2000);

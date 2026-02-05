@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
+import { getProfile, type Profile } from '@/lib/profiles';
 import {
   Search,
   Plus,
@@ -125,6 +126,7 @@ const Dashboard: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user, isLoading: authLoading, signOut } = useAuth(true); // requireAuth = true
   const [isLoading, setIsLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
@@ -137,18 +139,26 @@ const Dashboard: React.FC = () => {
 
   const currentCategory = searchParams.get('category');
 
-  // Get user display info from auth
-  const userDisplayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+  // Get user display info from profile (persists across OAuth logins) or fallback to auth
+  const userDisplayName = profile?.display_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
   const userEmail = user?.email || '';
-  const userAvatarUrl = user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=f97316&color=fff`;
+  const userAvatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=f97316&color=fff`;
 
   useEffect(() => {
-    // Only show loading briefly for UI transition, auth loading is handled by useAuth
-    if (!authLoading) {
-      const timer = setTimeout(() => setIsLoading(false), 300);
-      return () => clearTimeout(timer);
-    }
-  }, [authLoading]);
+    // Load profile from profiles table
+    const loadProfile = async () => {
+      if (!authLoading && user) {
+        try {
+          const profileData = await getProfile();
+          setProfile(profileData);
+        } catch (error) {
+          console.error('Error loading profile:', error);
+        }
+        setIsLoading(false);
+      }
+    };
+    loadProfile();
+  }, [authLoading, user]);
 
   const filteredItems = items.filter((item) => {
     if (showStarred) {
