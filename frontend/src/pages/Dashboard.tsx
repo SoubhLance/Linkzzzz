@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { getProfile, type Profile } from '@/lib/profiles';
+import { supabase } from '@/lib/supabase';
 import {
   Search,
   Plus,
@@ -51,75 +52,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-// Mock data
-const initialMockItems = [
-  {
-    id: '1',
-    title: 'React Best Practices 2024',
-    description: 'A comprehensive guide to modern React patterns and performance optimization techniques.',
-    category: 'Study',
-    type: 'link' as const,
-    starred: true,
-  },
-  {
-    id: '2',
-    title: 'UI Design Inspiration',
-    description: 'Beautiful interface designs from Dribbble and Behance for the new dashboard project.',
-    category: 'Work',
-    type: 'image' as const,
-    imageUrl: 'https://images.unsplash.com/photo-1558655146-9f40138edfeb?w=400',
-    starred: false,
-  },
-  {
-    id: '3',
-    title: 'Meeting Notes - Q4 Planning',
-    description: 'Key takeaways from the quarterly planning session. Action items and deadlines included.',
-    category: 'Work',
-    type: 'note' as const,
-    starred: true,
-  },
-  {
-    id: '4',
-    title: 'Lofi Hip Hop Playlist',
-    description: 'Perfect background music for focused work sessions. 3 hours of chill beats.',
-    category: 'Music',
-    type: 'link' as const,
-    starred: false,
-  },
-  {
-    id: '5',
-    title: 'Attack on Titan Final Season',
-    description: 'Episode guide and discussion threads for the final season.',
-    category: 'Anime',
-    type: 'link' as const,
-    starred: true,
-  },
-  {
-    id: '6',
-    title: 'Solo Leveling Chapter Updates',
-    description: 'Latest chapter releases and fan translations.',
-    category: 'Manhwa',
-    type: 'link' as const,
-    starred: false,
-  },
-  {
-    id: '7',
-    title: 'TypeScript Advanced Patterns',
-    description: 'Deep dive into conditional types, mapped types, and template literal types.',
-    category: 'Research',
-    type: 'note' as const,
-    starred: false,
-  },
-  {
-    id: '8',
-    title: 'Vacation Photos - Japan 2024',
-    description: 'Cherry blossom season in Tokyo and Kyoto. Beautiful temples and gardens.',
-    category: 'Personal',
-    type: 'image' as const,
-    imageUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=400',
-    starred: true,
-  },
-];
+// Interfaces for Supabase schema
+interface Category {
+  id: string;
+  user_id: string;
+  name: string;
+}
+
+interface Item {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  categoryId?: string;
+  type: 'link' | 'note' | 'image';
+  imageUrl?: string;
+  starred: boolean;
+}
 
 const mockNotifications = [
   { title: 'Linkzzzz', message: 'Your link was saved successfully!', time: '2 min ago' },
@@ -159,8 +108,15 @@ const Dashboard: React.FC = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showStarred, setShowStarred] = useState(false);
-  const [items, setItems] = useState(initialMockItems);
+  const [items, setItems] = useState<Item[]>([]);
+  const [dbCategories, setDbCategories] = useState<Category[]>([]);
   const [selectedType, setSelectedType] = useState('link');
+  
+  // States for Add Item Modal
+  const [newItemTitle, setNewItemTitle] = useState('');
+  const [newItemContent, setNewItemContent] = useState('');
+  const [selectedCategoryName, setSelectedCategoryName] = useState('personal');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
 
   const currentCategory = searchParams.get('category');
@@ -169,6 +125,42 @@ const Dashboard: React.FC = () => {
   const userDisplayName = profile?.display_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
   const userEmail = user?.email || '';
   const userAvatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=f97316&color=fff`;
+
+  const fetchCategories = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('user_id', user.id);
+      
+    if (!error && data) {
+      setDbCategories(data);
+      setCustomCategories(data.map(c => c.name));
+    }
+  };
+
+  const fetchItems = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('items')
+      .select('*, categories(name)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      const formatted = data.map(dbItem => ({
+        id: dbItem.id,
+        title: dbItem.title,
+        description: dbItem.content,
+        category: dbItem.categories?.name || 'Uncategorized',
+        categoryId: dbItem.category_id,
+        type: dbItem.type as any,
+        imageUrl: dbItem.image_url,
+        starred: dbItem.is_favorite,
+      }));
+      setItems(formatted);
+    }
+  };
 
   useEffect(() => {
     // Load profile from profiles table
@@ -183,7 +175,12 @@ const Dashboard: React.FC = () => {
         setIsLoading(false);
       }
     };
-    loadProfile();
+    
+    if (!authLoading && user) {
+      loadProfile();
+      fetchCategories();
+      fetchItems();
+    }
   }, [authLoading, user]);
 
   const filteredItems = items.filter((item) => {
@@ -200,18 +197,109 @@ const Dashboard: React.FC = () => {
     return matchesCategory && matchesSearch;
   });
 
-  const handleStarToggle = (itemId: string) => {
-    setItems(prev => prev.map(item =>
-      item.id === itemId ? { ...item, starred: !item.starred } : item
-    ));
+  const handleStarToggle = async (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item || !user) return;
+    const newStarredStatus = !item.starred;
+    
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, starred: newStarredStatus } : i));
+
+    const { error } = await supabase
+      .from('items')
+      .update({ is_favorite: newStarredStatus })
+      .eq('id', itemId)
+      .eq('user_id', user.id);
+      
+    if (error) {
+      setItems(prev => prev.map(i => i.id === itemId ? { ...i, starred: !newStarredStatus } : i));
+    }
   };
 
-  const handleAddCategory = () => {
-    if (newCategoryName.trim()) {
-      setCustomCategories([...customCategories, newCategoryName.trim()]);
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim() || !user) return;
+    
+    const { data, error } = await supabase
+      .from('categories')
+      .insert([{ user_id: user.id, name: newCategoryName.trim() }])
+      .select()
+      .single();
+
+    if (!error && data) {
+      setDbCategories([...dbCategories, data]);
+      setCustomCategories([...customCategories, data.name]);
       setNewCategoryName('');
       setShowAddCategory(false);
     }
+  };
+
+  const handleSaveItem = async () => {
+    if (!user || !newItemTitle.trim() || !newItemContent.trim()) return;
+    setIsSubmitting(true);
+
+    try {
+      let categoryId = dbCategories.find(c => c.name.toLowerCase() === selectedCategoryName.toLowerCase())?.id;
+      
+      if (!categoryId) {
+        const { data: newCat, error: catError } = await supabase
+          .from('categories')
+          .insert([{ user_id: user.id, name: selectedCategoryName.toLowerCase() }])
+          .select()
+          .single();
+          
+        if (catError) throw catError;
+        categoryId = newCat.id;
+        
+        setDbCategories([...dbCategories, newCat]);
+        setCustomCategories([...customCategories, newCat.name]);
+      }
+
+      const newItemData = {
+        user_id: user.id,
+        category_id: categoryId,
+        type: selectedType,
+        title: newItemTitle,
+        content: newItemContent,
+        image_url: selectedType === 'image' ? newItemContent : null,
+        is_favorite: false,
+        position: items.length
+      };
+
+      const { data: insertedItem, error: itemError } = await supabase
+        .from('items')
+        .insert([newItemData])
+        .select(`*, categories(name)`)
+        .single();
+
+      if (itemError) throw itemError;
+
+      const formattedItem = {
+        id: insertedItem.id,
+        title: insertedItem.title,
+        description: insertedItem.content,
+        category: insertedItem.categories?.name,
+        type: insertedItem.type as any,
+        imageUrl: insertedItem.image_url,
+        starred: insertedItem.is_favorite,
+      };
+
+      setItems([formattedItem, ...items]);
+      setNewItemTitle('');
+      setNewItemContent('');
+      setIsAddDialogOpen(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const deleteItem = async (itemId: string) => {
+    if (!user) return;
+    setItems(items.filter(i => i.id !== itemId));
+    const { error } = await supabase
+      .from('items')
+      .delete()
+      .eq('id', itemId)
+      .eq('user_id', user.id);
+    if (error) fetchItems();
   };
 
   const handleProfileClick = () => {
@@ -309,6 +397,8 @@ const Dashboard: React.FC = () => {
                       <input
                         type="text"
                         placeholder="Enter title..."
+                        value={newItemTitle}
+                        onChange={(e) => setNewItemTitle(e.target.value)}
                         className="w-full h-12 px-4 bg-white/[0.03] border border-white/[0.06] rounded-xl text-[14px] text-white placeholder:text-white/15 outline-none transition-all duration-250 focus:border-orange-500/40 focus:bg-white/[0.05] focus:shadow-[0_0_0_3px_hsl(24,100%,50%,0.1),inset_0_2px_4px_hsl(0,0%,0%,0.1)]"
                         style={{ boxShadow: 'inset 0 2px 4px hsl(0 0% 0% / 0.12)' }}
                       />
@@ -319,6 +409,8 @@ const Dashboard: React.FC = () => {
                       <label className="text-[10px] font-semibold text-white/30 uppercase tracking-[0.12em]">URL or Content</label>
                       <textarea
                         placeholder="Paste URL or write your note..."
+                        value={newItemContent}
+                        onChange={(e) => setNewItemContent(e.target.value)}
                         rows={3}
                         className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-[14px] text-white placeholder:text-white/15 outline-none resize-none transition-all duration-250 focus:border-orange-500/40 focus:bg-white/[0.05] focus:shadow-[0_0_0_3px_hsl(24,100%,50%,0.1),inset_0_2px_4px_hsl(0,0%,0%,0.1)]"
                         style={{ boxShadow: 'inset 0 2px 4px hsl(0 0% 0% / 0.12)' }}
@@ -328,20 +420,23 @@ const Dashboard: React.FC = () => {
                     {/* Category Select */}
                     <div className="space-y-2.5">
                       <label className="text-[10px] font-semibold text-white/30 uppercase tracking-[0.12em]">Category</label>
-                      <Select defaultValue="personal">
+                      <Select value={selectedCategoryName} onValueChange={setSelectedCategoryName}>
                         <SelectTrigger className="h-12 bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05] focus:ring-orange-500/20 focus:border-orange-500/40 rounded-xl text-[14px] text-white transition-all duration-200"
                           style={{ boxShadow: 'inset 0 2px 4px hsl(0 0% 0% / 0.12)' }}>
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent className="bg-[#18181B] border-white/[0.08] rounded-xl shadow-2xl shadow-black/50">
-                          {Object.entries(categoryDots).map(([key, dotClass]) => (
-                            <SelectItem key={key} value={key} className="text-white/70 hover:text-white focus:text-white focus:bg-white/[0.05] rounded-lg">
-                              <span className="flex items-center gap-2">
-                                <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-                                {key.charAt(0).toUpperCase() + key.slice(1)}
-                              </span>
-                            </SelectItem>
-                          ))}
+                          {Array.from(new Set([...Object.keys(categoryDots), ...dbCategories.map(c => c.name.toLowerCase())])).map((key) => {
+                            const dotClass = categoryDots[key] || 'bg-white';
+                            return (
+                              <SelectItem key={key} value={key} className="text-white/70 hover:text-white focus:text-white focus:bg-white/[0.05] rounded-lg">
+                                <span className="flex items-center gap-2">
+                                  <span className={`w-2 h-2 rounded-full ${dotClass}`} />
+                                  {key.charAt(0).toUpperCase() + key.slice(1)}
+                                </span>
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>
@@ -349,8 +444,12 @@ const Dashboard: React.FC = () => {
 
                   {/* Modal Footer */}
                   <div className="px-7 pb-7">
-                    <button className="w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold text-[14px] rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
-                      Save Item
+                    <button 
+                      onClick={handleSaveItem}
+                      disabled={isSubmitting}
+                      className="w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold text-[14px] rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSubmitting ? 'Saving...' : 'Save Item'}
                     </button>
                   </div>
                 </div>
