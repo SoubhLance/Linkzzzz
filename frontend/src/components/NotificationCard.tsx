@@ -35,41 +35,44 @@ const StyledWrapper = styled.div`
     width: 100%;
     max-width: 320px;
     height: 70px;
-    background: hsl(var(--card));
-    border-radius: 16px;
+    background: #111114;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: left;
     backdrop-filter: blur(10px);
-    transition: 0.3s ease-in-out;
-    border: 1px solid hsl(var(--border));
+    transition: all 0.25s ease;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.02);
   }
 
   .card:hover {
     cursor: pointer;
-    transform: scale(1.02);
-    border-color: hsl(24, 100%, 50% / 0.3);
-    box-shadow: 0 4px 20px hsl(24, 100%, 50% / 0.1);
+    transform: scale(1.02) translateY(-1px);
+    border-color: rgba(249, 115, 22, 0.15);
+    box-shadow: 0 8px 24px rgba(249, 115, 22, 0.08),
+                0 2px 8px rgba(0, 0, 0, 0.3);
   }
 
   .img {
-    width: 44px;
-    height: 44px;
-    margin-left: 12px;
+    width: 40px;
+    height: 40px;
+    margin-left: 14px;
     border-radius: 10px;
-    background: linear-gradient(135deg, hsl(24, 100%, 55%), hsl(20, 100%, 45%));
+    background: linear-gradient(135deg, hsl(24, 100%, 50%), hsl(20, 100%, 42%));
     flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.2);
   }
 
   .card:hover > .img {
     transition: 0.3s ease-in-out;
-    background: linear-gradient(135deg, hsl(24, 100%, 60%), hsl(15, 100%, 50%));
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
   }
 
   .textBox {
     width: calc(100% - 80px);
     margin-left: 12px;
-    color: hsl(var(--foreground));
     font-family: 'Inter', sans-serif;
   }
 
@@ -81,21 +84,22 @@ const StyledWrapper = styled.div`
 
   .span {
     font-size: 10px;
-    color: hsl(var(--muted-foreground));
+    color: rgba(255, 255, 255, 0.2);
   }
 
   .h1 {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     margin: 0;
-    color: hsl(var(--foreground));
+    color: rgba(255, 255, 255, 0.8);
+    letter-spacing: -0.01em;
   }
 
   .p {
     font-size: 12px;
     font-weight: 400;
     margin: 4px 0 0 0;
-    color: hsl(var(--muted-foreground));
+    color: rgba(255, 255, 255, 0.3);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

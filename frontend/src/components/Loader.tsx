@@ -31,7 +31,8 @@ const StyledWrapper = styled.div`
     height: 30px;
     width: 30px;
     border-radius: 50%;
-    background: hsl(24, 100%, 50%);
+    background: linear-gradient(135deg, hsl(24, 100%, 50%), hsl(20, 100%, 42%));
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
     animation: loading-bounce 0.5s ease-in-out infinite alternate;
   }
 
@@ -43,7 +44,7 @@ const StyledWrapper = styled.div`
     height: 7px;
     width: 45px;
     border-radius: 4px;
-    box-shadow: 0 5px 0 hsl(0, 0%, 95%), -35px 50px 0 hsl(0, 0%, 95%), -70px 95px 0 hsl(0, 0%, 95%);
+    box-shadow: 0 5px 0 rgba(255, 255, 255, 0.15), -35px 50px 0 rgba(255, 255, 255, 0.15), -70px 95px 0 rgba(255, 255, 255, 0.15);
     animation: loading-step 1s ease-in-out infinite;
   }
 
@@ -65,14 +66,14 @@ const StyledWrapper = styled.div`
   @keyframes loading-step {
     0% {
       box-shadow: 0 10px 0 rgba(0, 0, 0, 0),
-        0 10px 0 hsl(0, 0%, 95%),
-        -35px 50px 0 hsl(0, 0%, 95%),
-        -70px 90px 0 hsl(0, 0%, 95%);
+        0 10px 0 rgba(255, 255, 255, 0.15),
+        -35px 50px 0 rgba(255, 255, 255, 0.15),
+        -70px 90px 0 rgba(255, 255, 255, 0.15);
     }
     100% {
-      box-shadow: 0 10px 0 hsl(0, 0%, 95%),
-        -35px 50px 0 hsl(0, 0%, 95%),
-        -70px 90px 0 hsl(0, 0%, 95%),
+      box-shadow: 0 10px 0 rgba(255, 255, 255, 0.15),
+        -35px 50px 0 rgba(255, 255, 255, 0.15),
+        -70px 90px 0 rgba(255, 255, 255, 0.15),
         -70px 90px 0 rgba(0, 0, 0, 0);
     }
   }
