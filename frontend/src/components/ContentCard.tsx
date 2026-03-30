@@ -61,6 +61,13 @@ const ContentCard: React.FC<ContentCardProps> = ({
     onStarToggle?.();
   };
 
+  const handleLinkClick = (e: React.MouseEvent) => {
+    if (type === 'link' && description) {
+      e.stopPropagation();
+      window.open(description, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   const accentGradient = category
     ? categoryAccentMap[category.toLowerCase()] || 'from-orange-500/80 to-orange-600/40'
     : 'from-orange-500/80 to-orange-600/40';
@@ -141,9 +148,17 @@ const ContentCard: React.FC<ContentCardProps> = ({
               >
                 <Star size={15} className={starred ? "fill-orange-400" : ""} />
               </button>
-              <div className="p-1.5 rounded-lg bg-white/[0.03]">
+              <button 
+                onClick={handleLinkClick}
+                className={`p-1.5 rounded-lg transition-all ${
+                  type === 'link' 
+                    ? 'bg-white/[0.05] hover:bg-orange-500/10 hover:text-orange-400 cursor-pointer' 
+                    : 'bg-white/[0.03] cursor-default'
+                }`}
+                title={type === 'link' ? "Open Link" : undefined}
+              >
                 <TypeIcon />
-              </div>
+              </button>
             </div>
           </div>
         </div>

@@ -95,6 +95,15 @@ const categoryDots: Record<string, string> = {
   manhwa: 'bg-indigo-400',
 };
 
+const isValidUrl = (string: string) => {
+  try {
+    const url = new URL(string.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch (_) {
+    return false;
+  }
+};
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -256,13 +265,23 @@ const Dashboard: React.FC = () => {
         setCustomCategories([...customCategories, newCat.name]);
       }
 
+      let finalType = selectedType;
+      const trimmedContent = newItemContent.trim();
+      
+      if (finalType === 'link') {
+        if (!isValidUrl(trimmedContent)) {
+          console.warn('Invalid URL entered. Automatically saving as a note.');
+          finalType = 'note';
+        }
+      }
+
       const itemData = {
         user_id: user.id,
         category_id: categoryId,
-        type: selectedType,
-        title: newItemTitle,
-        content: newItemContent,
-        image_url: selectedType === 'image' ? newItemContent : null,
+        type: finalType,
+        title: newItemTitle.trim(),
+        content: trimmedContent,
+        image_url: finalType === 'image' ? trimmedContent : null,
       };
 
       if (editingItemId) {
