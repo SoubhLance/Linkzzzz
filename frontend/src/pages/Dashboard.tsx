@@ -68,6 +68,7 @@ interface Item {
   type: 'link' | 'note' | 'image';
   imageUrl?: string;
   starred: boolean;
+  is_completed?: boolean;
 }
 
 const mockNotifications = [
@@ -117,6 +118,7 @@ const Dashboard: React.FC = () => {
   const [newItemContent, setNewItemContent] = useState('');
   const [selectedCategoryName, setSelectedCategoryName] = useState('personal');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
 
   const currentCategory = searchParams.get('category');
@@ -157,6 +159,7 @@ const Dashboard: React.FC = () => {
         type: dbItem.type as any,
         imageUrl: dbItem.image_url,
         starred: dbItem.is_favorite,
+        is_completed: dbItem.is_completed,
       }));
       setItems(formatted);
     }
@@ -253,38 +256,63 @@ const Dashboard: React.FC = () => {
         setCustomCategories([...customCategories, newCat.name]);
       }
 
-      const newItemData = {
+      const itemData = {
         user_id: user.id,
         category_id: categoryId,
         type: selectedType,
         title: newItemTitle,
         content: newItemContent,
         image_url: selectedType === 'image' ? newItemContent : null,
-        is_favorite: false,
-        position: items.length
       };
 
-      const { data: insertedItem, error: itemError } = await supabase
-        .from('items')
-        .insert([newItemData])
-        .select(`*, categories(name)`)
-        .single();
+      if (editingItemId) {
+        const { error: updateError } = await supabase
+          .from('items')
+          .update(itemData)
+          .eq('id', editingItemId)
+          .eq('user_id', user.id);
+          
+        if (updateError) throw updateError;
+        
+        setItems(items.map(i => i.id === editingItemId ? {
+            ...i,
+            title: newItemTitle,
+            description: newItemContent,
+            category: selectedCategoryName, 
+            type: selectedType as any,
+            imageUrl: itemData.image_url || undefined,
+        } : i));
+      } else {
+        const insertData = {
+          ...itemData,
+          is_favorite: false,
+          position: items.length
+        };
+        const { data: insertedItem, error: itemError } = await supabase
+          .from('items')
+          .insert([insertData])
+          .select(`*, categories(name)`)
+          .single();
 
-      if (itemError) throw itemError;
+        if (itemError) throw itemError;
 
-      const formattedItem = {
-        id: insertedItem.id,
-        title: insertedItem.title,
-        description: insertedItem.content,
-        category: insertedItem.categories?.name,
-        type: insertedItem.type as any,
-        imageUrl: insertedItem.image_url,
-        starred: insertedItem.is_favorite,
-      };
+        const formattedItem = {
+          id: insertedItem.id,
+          title: insertedItem.title,
+          description: insertedItem.content,
+          category: insertedItem.categories?.name,
+          type: insertedItem.type as any,
+          imageUrl: insertedItem.image_url,
+          starred: insertedItem.is_favorite,
+          is_completed: insertedItem.is_completed,
+        };
 
-      setItems([formattedItem, ...items]);
+        setItems([formattedItem, ...items]);
+      }
+
       setNewItemTitle('');
       setNewItemContent('');
+      setEditingItemId(null);
       setIsAddDialogOpen(false);
     } finally {
       setIsSubmitting(false);
@@ -300,6 +328,43 @@ const Dashboard: React.FC = () => {
       .eq('id', itemId)
       .eq('user_id', user.id);
     if (error) fetchItems();
+  };
+
+  const handleEditClick = (item: Item) => {
+    setEditingItemId(item.id);
+    setNewItemTitle(item.title);
+    setNewItemContent(item.description || '');
+    setSelectedType(item.type);
+    setSelectedCategoryName(item.category?.toLowerCase() || 'personal');
+    setIsAddDialogOpen(true);
+  };
+
+  const handleCompleteToggle = async (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item || !user) return;
+    const newStatus = !item.is_completed;
+    
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, is_completed: newStatus } : i));
+
+    const { error } = await supabase
+      .from('items')
+      .update({ is_completed: newStatus })
+      .eq('id', itemId)
+      .eq('user_id', user.id);
+      
+    if (error) {
+       setItems(prev => prev.map(i => i.id === itemId ? { ...i, is_completed: !newStatus } : i));
+    }
+  };
+
+  const handleDeleteCategory = async (categoryName: string) => {
+    if (!user) return;
+    const cat = dbCategories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
+    if (cat) {
+      setDbCategories(dbCategories.filter(c => c.id !== cat.id));
+      setCustomCategories(customCategories.filter(c => c !== cat.name));
+      await supabase.from('categories').delete().eq('id', cat.id).eq('user_id', user.id);
+    }
   };
 
   const handleProfileClick = () => {
@@ -324,6 +389,7 @@ const Dashboard: React.FC = () => {
         onAddCategory={() => setShowAddCategory(true)}
         showStarred={showStarred}
         onToggleStarred={setShowStarred}
+        onDeleteCategory={handleDeleteCategory}
       />
 
       {/* Main Content */}
@@ -351,7 +417,14 @@ const Dashboard: React.FC = () => {
           {/* Actions */}
           <div className="flex items-center gap-2 ml-4">
             {/* Add New */}
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+              setIsAddDialogOpen(open);
+              if (!open) {
+                setEditingItemId(null);
+                setNewItemTitle('');
+                setNewItemContent('');
+              }
+            }}>
               <DialogTrigger asChild>
                 <button className="flex items-center gap-2 px-5 h-10 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold text-[13px] rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
                   <Plus size={17} strokeWidth={2.5} />
@@ -603,7 +676,11 @@ const Dashboard: React.FC = () => {
                       type={item.type}
                       imageUrl={item.imageUrl}
                       starred={item.starred}
+                      isCompleted={item.is_completed}
                       onStarToggle={() => handleStarToggle(item.id)}
+                      onDelete={() => deleteItem(item.id)}
+                      onEdit={() => handleEditClick(item)}
+                      onCompleteToggle={() => handleCompleteToggle(item.id)}
                     />
                   </motion.div>
                 ))}

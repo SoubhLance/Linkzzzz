@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link2, FileText, Image as ImageIcon, Star } from 'lucide-react';
+import { Link2, FileText, Image as ImageIcon, Star, Trash2, Edit2, CheckCircle2 } from 'lucide-react';
 
 interface ContentCardProps {
   title: string;
@@ -8,8 +8,12 @@ interface ContentCardProps {
   type?: 'link' | 'note' | 'image';
   imageUrl?: string;
   starred?: boolean;
+  isCompleted?: boolean;
   onStarToggle?: () => void;
   onClick?: () => void;
+  onDelete?: () => void;
+  onEdit?: () => void;
+  onCompleteToggle?: () => void;
 }
 
 const categoryAccentMap: Record<string, string> = {
@@ -45,8 +49,12 @@ const ContentCard: React.FC<ContentCardProps> = ({
   type = 'link',
   imageUrl,
   starred = false,
+  isCompleted = false,
   onStarToggle,
   onClick,
+  onDelete,
+  onEdit,
+  onCompleteToggle,
 }) => {
   const handleStarClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -71,7 +79,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
   return (
     <div
       onClick={onClick}
-      className="group relative flex flex-col w-full h-full min-h-[11rem] bg-[#111114] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-[0_8px_40px_hsl(24,100%,50%,0.08)] hover:scale-[1.03] hover:-translate-y-0.5"
+      className={`group relative flex flex-col w-full h-full min-h-[11rem] bg-[#111114] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-[0_8px_40px_hsl(24,100%,50%,0.08)] hover:scale-[1.03] hover:-translate-y-0.5 ${isCompleted ? 'opacity-40 hover:opacity-100' : ''}`}
       style={{
         boxShadow: '0 2px 8px hsl(0 0% 0% / 0.3), inset 0 1px 0 hsl(0 0% 100% / 0.02)',
       }}
@@ -105,16 +113,37 @@ const ContentCard: React.FC<ContentCardProps> = ({
             <span />
           )}
 
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleStarClick}
-              className={`p-1.5 rounded-lg transition-all duration-200 ${starred ? 'text-orange-400 bg-orange-500/10' : 'text-white/20 hover:text-orange-400 hover:bg-orange-500/10'}`}
-              aria-label={starred ? "Unstar" : "Star"}
-            >
-              <Star size={15} className={starred ? "fill-orange-400" : ""} />
-            </button>
-            <div className="p-1.5 rounded-lg bg-white/[0.03]">
-              <TypeIcon />
+          <div className="flex items-center">
+            {/* Action items conditionally shown on hover */}
+            <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 mr-1.5">
+              {onCompleteToggle && (
+                <button onClick={(e) => { e.stopPropagation(); onCompleteToggle(); }} className={`p-1.5 rounded-lg transition-all ${isCompleted ? 'text-emerald-400 bg-emerald-500/10' : 'text-white/20 hover:text-emerald-400 hover:bg-emerald-500/10'}`}>
+                  <CheckCircle2 size={14} className={isCompleted ? "fill-emerald-400" : ""} />
+                </button>
+              )}
+              {onEdit && (
+                <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1.5 rounded-lg text-white/20 hover:text-blue-400 hover:bg-blue-500/10 transition-all">
+                  <Edit2 size={14} />
+                </button>
+              )}
+              {onDelete && (
+                <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleStarClick}
+                className={`p-1.5 rounded-lg transition-all duration-200 ${starred ? 'text-orange-400 bg-orange-500/10' : 'text-white/20 hover:text-orange-400 hover:bg-orange-500/10'}`}
+                aria-label={starred ? "Unstar" : "Star"}
+              >
+                <Star size={15} className={starred ? "fill-orange-400" : ""} />
+              </button>
+              <div className="p-1.5 rounded-lg bg-white/[0.03]">
+                <TypeIcon />
+              </div>
             </div>
           </div>
         </div>

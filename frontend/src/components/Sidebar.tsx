@@ -19,6 +19,7 @@ import {
   ChevronRight,
   LayoutGrid,
   Star,
+  Trash2,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,6 +29,7 @@ interface SidebarProps {
   onAddCategory?: () => void;
   showStarred?: boolean;
   onToggleStarred?: (starred: boolean) => void;
+  onDeleteCategory?: (name: string) => void;
 }
 
 const defaultCategories = [
@@ -50,6 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onAddCategory,
   showStarred = false,
   onToggleStarred,
+  onDeleteCategory,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -196,17 +199,27 @@ const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Custom categories */}
           {customCategories.map((name) => (
-            <button
-              key={name}
-              onClick={() => handleCategoryClick(name)}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-white/40 hover:text-white/70 hover:bg-white/[0.03] transition-all duration-200 group"
-              title={isCollapsed ? name : undefined}
-            >
-              <BookOpen size={17} className="text-white/30 group-hover:text-white/50" />
-              {!isCollapsed && (
-                <span className="text-[13px] font-medium truncate">{name}</span>
+            <div key={name} className="relative group w-full flex items-center">
+              <button
+                onClick={() => handleCategoryClick(name)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-white/40 hover:text-white/70 hover:bg-white/[0.03] transition-all duration-200"
+                title={isCollapsed ? name : undefined}
+              >
+                <BookOpen size={17} className="text-white/30 group-hover:text-white/50" />
+                {!isCollapsed && (
+                  <span className="text-[13px] font-medium truncate pr-6">{name}</span>
+                )}
+              </button>
+              {onDeleteCategory && !isCollapsed && (
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onDeleteCategory(name); }}
+                  className="absolute right-2 p-1.5 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all z-10"
+                  title="Delete category"
+                >
+                  <Trash2 size={13} />
+                </button>
               )}
-            </button>
+            </div>
           ))}
 
           {/* Add category */}
