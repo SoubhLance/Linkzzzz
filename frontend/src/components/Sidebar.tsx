@@ -20,6 +20,7 @@ import {
   LayoutGrid,
   Star,
   Trash2,
+  CheckCircle,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -60,6 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const currentCategory = new URLSearchParams(location.search).get('category');
   const isAllItems = !currentCategory && !showStarred;
   const isStarredActive = showStarred;
+  const isCompletedActive = currentCategory === 'completed';
 
   const handleCategoryClick = (categoryName: string) => {
     onToggleStarred?.(false);
@@ -74,6 +76,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   const handleStarredClick = () => {
     onToggleStarred?.(true);
     navigate('/dashboard');
+  };
+
+  const handleCompletedClick = () => {
+    onToggleStarred?.(false);
+    navigate('/dashboard?category=completed');
   };
 
   return (
@@ -157,6 +164,27 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}
             {isStarredActive && !isCollapsed && (
               <div className="ml-auto w-1.5 h-1.5 rounded-full bg-orange-400 animate-glow-pulse" />
+            )}
+          </button>
+
+          {/* Completed */}
+          <button
+            onClick={handleCompletedClick}
+            className={`
+              w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
+              ${isCompletedActive
+                ? 'bg-emerald-500/10 text-emerald-400'
+                : 'text-white/40 hover:text-white/70 hover:bg-white/[0.03]'
+              }
+            `}
+            title={isCollapsed ? 'Completed' : undefined}
+          >
+            <CheckCircle size={18} className={isCompletedActive ? 'text-emerald-400' : 'group-hover:text-white/60'} />
+            {!isCollapsed && (
+              <span className="text-[13px] font-medium truncate">Completed</span>
+            )}
+            {isCompletedActive && !isCollapsed && (
+              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-400 animate-glow-pulse" />
             )}
           </button>
 

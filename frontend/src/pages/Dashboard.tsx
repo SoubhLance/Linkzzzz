@@ -139,6 +139,7 @@ const Dashboard: React.FC = () => {
 
   // Note modal
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
 
   const currentCategory = searchParams.get('category');
 
@@ -206,17 +207,21 @@ const Dashboard: React.FC = () => {
   }, [authLoading, user]);
 
   const filteredItems = items.filter((item) => {
-    if (showStarred) {
-      const matchesSearch = !searchQuery ||
-        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase());
-      return item.starred && matchesSearch;
-    }
-    const matchesCategory = !currentCategory || item.category.toLowerCase() === currentCategory;
     const matchesSearch = !searchQuery ||
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+
+    if (!matchesSearch) return false;
+
+    if (showStarred) {
+      return item.starred;
+    }
+    if (currentCategory === 'completed') {
+      return item.completed;
+    }
+    
+    const matchesCategory = !currentCategory || item.category.toLowerCase() === currentCategory;
+    return matchesCategory;
   });
 
   const handleStarToggle = async (itemId: string) => {
@@ -403,21 +408,7 @@ const Dashboard: React.FC = () => {
   };
 
   const deleteItem = async (itemId: string) => {
-    if (!user) return;
-    if (!confirm('Are you sure you want to delete this item? This action cannot be undone.')) return;
-    setItems(items.filter(i => i.id !== itemId));
-    const { error } = await supabase
-      .from('items')
-      .delete()
-      .eq('id', itemId)
-      .eq('user_id', user.id);
-    if (error) {
-      fetchItems();
-      toast.error('Failed to delete item');
-    } else {
-      addNotification('Item deleted');
-      toast.success('Item deleted');
-    }
+    setDeleteItemId(itemId);
   };
 
   const handleEditClick = (item: Item) => {
@@ -699,9 +690,11 @@ const Dashboard: React.FC = () => {
               <h1 className="text-[26px] font-bold tracking-tight text-white">
                 {showStarred
                   ? 'Starred'
-                  : currentCategory
-                    ? currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)
-                    : 'All Items'}
+                  : currentCategory === 'completed'
+                    ? 'Completed'
+                    : currentCategory
+                      ? currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1)
+                      : 'All Items'}
               </h1>
               <p className="text-white/25 text-[13px] mt-1">
                 {filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''} in your collection
@@ -882,6 +875,60 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteItemId && (
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+            onClick={() => setDeleteItemId(null)}
+          >
+            <div
+              className="bg-zinc-900 p-6 rounded-xl shadow-xl w-[350px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-lg font-semibold mb-2 text-white">
+                Delete this item?
+              </h2>
+        
+              <p className="text-sm text-gray-400 mb-4">
+                This action cannot be undone.
+              </p>
+        
+              <div className="flex justify-end gap-2">
+                <button
+                  className="px-4 py-2 rounded bg-gray-700 text-white hover:bg-gray-600 transition-colors"
+                  onClick={() => setDeleteItemId(null)}
+                >
+                  Cancel
+                </button>
+        
+                <button
+                  className="px-4 py-2 rounded bg-red-500 text-white hover:bg-red-600 transition-colors"
+                  onClick={async () => {
+                    const { error } = await supabase
+                      .from("items")
+                      .delete()
+                      .eq("id", deleteItemId);
+        
+                    if (!error) {
+                      setItems(prev => prev.filter(i => i.id !== deleteItemId));
+                      addNotification("Item deleted");
+                      toast.success("Item deleted");
+                    } else {
+                      toast.error("Failed to delete item");
+                    }
+        
+                    setDeleteItemId(null);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
