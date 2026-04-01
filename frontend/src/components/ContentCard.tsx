@@ -8,7 +8,7 @@ interface ContentCardProps {
   type?: 'link' | 'note' | 'image';
   imageUrl?: string;
   starred?: boolean;
-  isCompleted?: boolean;
+  completed?: boolean;
   onStarToggle?: () => void;
   onClick?: () => void;
   onDelete?: () => void;
@@ -49,7 +49,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
   type = 'link',
   imageUrl,
   starred = false,
-  isCompleted = false,
+  completed = false,
   onStarToggle,
   onClick,
   onDelete,
@@ -86,7 +86,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`group relative flex flex-col w-full h-full min-h-[11rem] bg-[#111114] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-[0_8px_40px_hsl(24,100%,50%,0.08)] hover:scale-[1.03] hover:-translate-y-0.5 ${isCompleted ? 'opacity-40 hover:opacity-100' : ''}`}
+      className={`group relative flex flex-col w-full h-full min-h-[11rem] bg-[#111114] rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:shadow-[0_8px_40px_hsl(24,100%,50%,0.08)] hover:scale-[1.03] hover:-translate-y-0.5 ${completed ? 'opacity-60 hover:opacity-80' : ''}`}
       style={{
         boxShadow: '0 2px 8px hsl(0 0% 0% / 0.3), inset 0 1px 0 hsl(0 0% 100% / 0.02)',
       }}
@@ -124,8 +124,8 @@ const ContentCard: React.FC<ContentCardProps> = ({
             {/* Action items conditionally shown on hover */}
             <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 mr-1.5">
               {onCompleteToggle && (
-                <button onClick={(e) => { e.stopPropagation(); onCompleteToggle(); }} className={`p-1.5 rounded-lg transition-all ${isCompleted ? 'text-emerald-400 bg-emerald-500/10' : 'text-white/20 hover:text-emerald-400 hover:bg-emerald-500/10'}`}>
-                  <CheckCircle2 size={14} className={isCompleted ? "fill-emerald-400" : ""} />
+                <button onClick={(e) => { e.stopPropagation(); onCompleteToggle(); }} className={`p-1.5 rounded-lg transition-all ${completed ? 'text-emerald-400 bg-emerald-500/10' : 'text-white/20 hover:text-emerald-400 hover:bg-emerald-500/10'}`}>
+                  <CheckCircle2 size={14} className={completed ? "fill-emerald-400" : ""} />
                 </button>
               )}
               {onEdit && (
@@ -153,7 +153,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
                 className={`p-1.5 rounded-lg transition-all ${
                   type === 'link' 
                     ? 'bg-white/[0.05] hover:bg-orange-500/10 hover:text-orange-400 cursor-pointer' 
-                    : 'bg-white/[0.03] cursor-default'
+                    : 'bg-white/[0.03] cursor-pointer'
                 }`}
                 title={type === 'link' ? "Open Link" : undefined}
               >
@@ -165,10 +165,16 @@ const ContentCard: React.FC<ContentCardProps> = ({
 
         {/* Text Content */}
         <div className="mt-auto pt-4">
-          <h3 className="text-[15px] font-semibold tracking-tight text-white/90 line-clamp-1 mb-1.5 group-hover:text-orange-300 transition-colors duration-300">
+          <h3 className={`text-[15px] font-semibold tracking-tight line-clamp-1 mb-1.5 transition-colors duration-200 ${
+            completed
+              ? 'line-through text-white/35 group-hover:text-white/50'
+              : 'text-white/90 group-hover:text-orange-300'
+          }`}>
             {title}
           </h3>
-          <p className="text-[13px] text-white/30 line-clamp-2 leading-relaxed group-hover:text-white/45 transition-colors duration-300">
+          <p className={`text-[13px] line-clamp-2 leading-relaxed transition-colors duration-200 ${
+            completed ? 'text-white/20 group-hover:text-white/30' : 'text-white/30 group-hover:text-white/45'
+          }`}>
             {description}
           </p>
         </div>

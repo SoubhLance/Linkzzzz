@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { getProfile, type Profile } from '@/lib/profiles';
 import { supabase } from '@/lib/supabase';
+import toast from 'react-hot-toast';
 import {
   Search,
   Plus,
@@ -20,7 +21,6 @@ import {
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import ContentCard from '@/components/ContentCard';
-import NotificationCard from '@/components/NotificationCard';
 import Loader from '@/components/Loader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,13 +68,13 @@ interface Item {
   type: 'link' | 'note' | 'image';
   imageUrl?: string;
   starred: boolean;
-  is_completed?: boolean;
+  completed?: boolean;
 }
 
-const mockNotifications = [
-  { title: 'Linkzzzz', message: 'Your link was saved successfully!', time: '2 min ago' },
-  { title: 'Auto-organize', message: 'We categorized 5 new items', time: '1 hour ago' },
-];
+interface Notification {
+  id: number;
+  message: string;
+}
 
 const typeOptions = [
   { value: 'link', label: 'Link', icon: Link2 },
@@ -130,6 +130,16 @@ const Dashboard: React.FC = () => {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
 
+  // Real notifications
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const addNotification = (message: string) => {
+    setNotifications(prev => [{ id: Date.now(), message }, ...prev]);
+  };
+  const clearNotifications = () => setNotifications([]);
+
+  // Note modal
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+
   const currentCategory = searchParams.get('category');
 
   // Get user display info from profile (persists across OAuth logins) or fallback to auth
@@ -168,7 +178,7 @@ const Dashboard: React.FC = () => {
         type: dbItem.type as any,
         imageUrl: dbItem.image_url,
         starred: dbItem.is_favorite,
-        is_completed: dbItem.is_completed,
+        completed: dbItem.completed,
       }));
       setItems(formatted);
     }
@@ -224,6 +234,14 @@ const Dashboard: React.FC = () => {
 
     if (error) {
       setItems(prev => prev.map(i => i.id === itemId ? { ...i, starred: !newStarredStatus } : i));
+    }
+  };
+
+  const handleCardClick = (item: Item) => {
+    if (item.description && item.description.trim().startsWith('http')) {
+      window.open(item.description.trim(), '_blank', 'noopener,noreferrer');
+    } else if (item.type === 'note' || item.type === 'image') {
+      setSelectedItem(item);
     }
   };
 
@@ -343,6 +361,8 @@ const Dashboard: React.FC = () => {
           type: selectedType as any,
           imageUrl: itemData.image_url || undefined,
         } : i));
+        addNotification('Item updated successfully');
+        toast.success('Item updated successfully');
       } else {
         const insertData = {
           ...itemData,
@@ -365,10 +385,12 @@ const Dashboard: React.FC = () => {
           type: insertedItem.type as any,
           imageUrl: insertedItem.image_url,
           starred: insertedItem.is_favorite,
-          is_completed: insertedItem.is_completed,
+          completed: insertedItem.completed,
         };
 
         setItems([formattedItem, ...items]);
+        addNotification('Item saved successfully');
+        toast.success('Item saved successfully');
       }
 
       setNewItemTitle('');
@@ -382,13 +404,20 @@ const Dashboard: React.FC = () => {
 
   const deleteItem = async (itemId: string) => {
     if (!user) return;
+    if (!confirm('Are you sure you want to delete this item? This action cannot be undone.')) return;
     setItems(items.filter(i => i.id !== itemId));
     const { error } = await supabase
       .from('items')
       .delete()
       .eq('id', itemId)
       .eq('user_id', user.id);
-    if (error) fetchItems();
+    if (error) {
+      fetchItems();
+      toast.error('Failed to delete item');
+    } else {
+      addNotification('Item deleted');
+      toast.success('Item deleted');
+    }
   };
 
   const handleEditClick = (item: Item) => {
@@ -403,19 +432,25 @@ const Dashboard: React.FC = () => {
   const handleCompleteToggle = async (itemId: string) => {
     const item = items.find(i => i.id === itemId);
     if (!item || !user) return;
-    const newStatus = !item.is_completed;
-
-    setItems(prev => prev.map(i => i.id === itemId ? { ...i, is_completed: newStatus } : i));
-
-    const { error } = await supabase
+    
+    const { data, error } = await supabase
       .from('items')
-      .update({ is_completed: newStatus })
+      .update({ completed: !item.completed })
       .eq('id', itemId)
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .select();
+
+    console.log("UPDATE RESULT:", { data, error });
 
     if (error) {
-      setItems(prev => prev.map(i => i.id === itemId ? { ...i, is_completed: !newStatus } : i));
+      toast.error(error.message || 'Failed to update item');
+      return;
     }
+
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, completed: !item.completed } : i));
+
+    addNotification(!item.completed ? 'Marked as completed' : 'Marked as incomplete');
+    toast.success(!item.completed ? 'Marked as completed' : 'Marked as incomplete');
   };
 
   const handleDeleteCategory = async (categoryName: string) => {
@@ -593,15 +628,36 @@ const Dashboard: React.FC = () => {
               <PopoverTrigger asChild>
                 <button className="relative p-2.5 rounded-xl hover:bg-white/[0.04] transition-all duration-200 text-white/35 hover:text-white/60">
                   <Bell size={19} />
-                  <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full ring-2 ring-[#111114]" />
+                  {notifications.length > 0 && (
+                    <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full ring-2 ring-[#111114]" />
+                  )}
                 </button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-80 p-3 bg-[#18181B] border-white/[0.06] rounded-xl shadow-2xl shadow-black/50">
                 <div className="space-y-2">
-                  <p className="text-[13px] font-semibold text-white/70 px-2 py-1">Notifications</p>
-                  {mockNotifications.map((notification, index) => (
-                    <NotificationCard key={index} {...notification} />
-                  ))}
+                  <div className="flex items-center justify-between px-2 py-1">
+                    <p className="text-[13px] font-semibold text-white/70">Notifications</p>
+                    {notifications.length > 0 && (
+                      <button
+                        onClick={clearNotifications}
+                        className="text-[11px] text-white/30 hover:text-orange-400 transition-colors duration-200"
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                  {notifications.length === 0 ? (
+                    <p className="text-[12px] text-white/20 px-2 py-3 text-center">No notifications yet</p>
+                  ) : (
+                    notifications.map((n) => (
+                      <div key={n.id} className="flex items-center gap-3 px-3 py-2.5 bg-white/[0.03] rounded-xl border border-white/[0.04] transition-all duration-200 hover:border-orange-500/20">
+                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center flex-shrink-0">
+                          <Bell size={12} className="text-white" />
+                        </div>
+                        <p className="text-[12px] text-white/60">{n.message}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </PopoverContent>
             </Popover>
@@ -735,7 +791,8 @@ const Dashboard: React.FC = () => {
                       type={item.type}
                       imageUrl={item.imageUrl}
                       starred={item.starred}
-                      isCompleted={item.is_completed}
+                      completed={item.completed}
+                      onClick={() => handleCardClick(item)}
                       onStarToggle={() => handleStarToggle(item.id)}
                       onDelete={() => deleteItem(item.id)}
                       onEdit={() => handleEditClick(item)}
@@ -787,6 +844,44 @@ const Dashboard: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+      {/* Note View Modal */}
+      {selectedItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backdropFilter: 'blur(12px)', backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setSelectedItem(null)}
+        >
+          <div
+            className="relative w-full max-w-lg bg-[#111114] rounded-2xl overflow-hidden transition-all duration-200"
+            style={{ boxShadow: '0 24px 80px hsl(0 0% 0% / 0.6), inset 0 1px 0 hsl(0 0% 100% / 0.04)', border: '1px solid hsl(0 0% 100% / 0.06)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Accent bar */}
+            <div className="h-[3px] w-full bg-gradient-to-r from-orange-500/80 to-orange-600/40" />
+            <div className="p-7">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  {selectedItem.category && (
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/40 bg-white/[0.04] px-2.5 py-1 rounded-lg mb-3">
+                      {selectedItem.category}
+                    </span>
+                  )}
+                  <h2 className="text-[20px] font-bold text-white tracking-tight">{selectedItem.title}</h2>
+                </div>
+                <button
+                  onClick={() => setSelectedItem(null)}
+                  className="p-2 rounded-xl text-white/30 hover:text-white/70 hover:bg-white/[0.05] transition-all duration-200 flex-shrink-0 ml-4"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <p className="text-[14px] text-white/60 leading-relaxed whitespace-pre-wrap">{selectedItem.description}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
