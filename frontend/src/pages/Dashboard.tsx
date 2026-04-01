@@ -227,18 +227,65 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleAddCategory = async () => {
-    if (!newCategoryName.trim() || !user) return;
+  // Helper: Get or create a category (case-insensitive dedup, preserves original casing)
+  const getOrCreateCategory = async (categoryName: string, userId: string): Promise<Category | null> => {
+    const trimmed = categoryName.trim();
+    if (!trimmed) return null;
 
-    const { data, error } = await supabase
+    // 1. Check local state first (avoids unnecessary DB call)
+    const localMatch = dbCategories.find(c => c.name.toLowerCase() === trimmed.toLowerCase());
+    if (localMatch) return localMatch;
+
+    // 2. Check DB with case-insensitive match (covers stale local state)
+    const { data: existing, error: fetchError } = await supabase
       .from('categories')
-      .insert([{ user_id: user.id, name: newCategoryName.trim() }])
+      .select('*')
+      .eq('user_id', userId)
+      .ilike('name', trimmed);
+
+    if (!fetchError && existing && existing.length > 0) {
+      return existing[0];
+    }
+
+    // 3. Insert new category (preserving original casing)
+    const { data: newCat, error: insertError } = await supabase
+      .from('categories')
+      .insert([{ user_id: userId, name: trimmed }])
       .select()
       .single();
 
-    if (!error && data) {
-      setDbCategories([...dbCategories, data]);
-      setCustomCategories([...customCategories, data.name]);
+    if (!insertError && newCat) {
+      return newCat;
+    }
+
+    // 4. Handle race condition: UNIQUE constraint violation (Postgres 23505)
+    if (insertError && insertError.code === '23505') {
+      const { data: raceExisting } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', userId)
+        .ilike('name', trimmed);
+
+      if (raceExisting && raceExisting.length > 0) {
+        return raceExisting[0];
+      }
+    }
+
+    console.error('Failed to get or create category:', insertError);
+    return null;
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim() || !user) return;
+
+    const category = await getOrCreateCategory(newCategoryName, user.id);
+
+    if (category) {
+      // Update local state only if not already tracked
+      if (!dbCategories.find(c => c.id === category.id)) {
+        setDbCategories(prev => [...prev, category]);
+        setCustomCategories(prev => [...prev, category.name]);
+      }
       setNewCategoryName('');
       setShowAddCategory(false);
     }
@@ -249,20 +296,15 @@ const Dashboard: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      let categoryId = dbCategories.find(c => c.name.toLowerCase() === selectedCategoryName.toLowerCase())?.id;
+      // Resolve category: find existing or create new (case-insensitive, preserves casing)
+      const resolvedCategory = await getOrCreateCategory(selectedCategoryName, user.id);
+      if (!resolvedCategory) throw new Error('Failed to resolve category');
+      const categoryId = resolvedCategory.id;
 
-      if (!categoryId) {
-        const { data: newCat, error: catError } = await supabase
-          .from('categories')
-          .insert([{ user_id: user.id, name: selectedCategoryName.toLowerCase() }])
-          .select()
-          .single();
-
-        if (catError) throw catError;
-        categoryId = newCat.id;
-
-        setDbCategories([...dbCategories, newCat]);
-        setCustomCategories([...customCategories, newCat.name]);
+      // Update local state if newly encountered
+      if (!dbCategories.find(c => c.id === resolvedCategory.id)) {
+        setDbCategories(prev => [...prev, resolvedCategory]);
+        setCustomCategories(prev => [...prev, resolvedCategory.name]);
       }
 
       let finalType = selectedType;
