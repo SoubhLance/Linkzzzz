@@ -197,8 +197,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             );
           })}
 
-          {/* Custom categories */}
-          {customCategories.map((name) => (
+          {/* Custom categories (filtered to avoid duplicating defaults) */}
+          {customCategories
+            .filter((name) => !defaultCategories.some((d) => d.name.toLowerCase() === name.toLowerCase()))
+            .map((name) => (
             <div key={name} className="relative group w-full flex items-center">
               <button
                 onClick={() => handleCategoryClick(name)}
