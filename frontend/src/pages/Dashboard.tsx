@@ -121,7 +121,7 @@ const Dashboard: React.FC = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
   const [selectedType, setSelectedType] = useState('link');
-  
+
   // States for Add Item Modal
   const [newItemTitle, setNewItemTitle] = useState('');
   const [newItemContent, setNewItemContent] = useState('');
@@ -143,7 +143,7 @@ const Dashboard: React.FC = () => {
       .from('categories')
       .select('*')
       .eq('user_id', user.id);
-      
+
     if (!error && data) {
       setDbCategories(data);
       setCustomCategories(data.map(c => c.name));
@@ -187,7 +187,7 @@ const Dashboard: React.FC = () => {
         setIsLoading(false);
       }
     };
-    
+
     if (!authLoading && user) {
       loadProfile();
       fetchCategories();
@@ -213,7 +213,7 @@ const Dashboard: React.FC = () => {
     const item = items.find(i => i.id === itemId);
     if (!item || !user) return;
     const newStarredStatus = !item.starred;
-    
+
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, starred: newStarredStatus } : i));
 
     const { error } = await supabase
@@ -221,7 +221,7 @@ const Dashboard: React.FC = () => {
       .update({ is_favorite: newStarredStatus })
       .eq('id', itemId)
       .eq('user_id', user.id);
-      
+
     if (error) {
       setItems(prev => prev.map(i => i.id === itemId ? { ...i, starred: !newStarredStatus } : i));
     }
@@ -229,7 +229,7 @@ const Dashboard: React.FC = () => {
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim() || !user) return;
-    
+
     const { data, error } = await supabase
       .from('categories')
       .insert([{ user_id: user.id, name: newCategoryName.trim() }])
@@ -250,24 +250,24 @@ const Dashboard: React.FC = () => {
 
     try {
       let categoryId = dbCategories.find(c => c.name.toLowerCase() === selectedCategoryName.toLowerCase())?.id;
-      
+
       if (!categoryId) {
         const { data: newCat, error: catError } = await supabase
           .from('categories')
           .insert([{ user_id: user.id, name: selectedCategoryName.toLowerCase() }])
           .select()
           .single();
-          
+
         if (catError) throw catError;
         categoryId = newCat.id;
-        
+
         setDbCategories([...dbCategories, newCat]);
         setCustomCategories([...customCategories, newCat.name]);
       }
 
       let finalType = selectedType;
       const trimmedContent = newItemContent.trim();
-      
+
       if (finalType === 'link') {
         if (!isValidUrl(trimmedContent)) {
           console.warn('Invalid URL entered. Automatically saving as a note.');
@@ -290,16 +290,16 @@ const Dashboard: React.FC = () => {
           .update(itemData)
           .eq('id', editingItemId)
           .eq('user_id', user.id);
-          
+
         if (updateError) throw updateError;
-        
+
         setItems(items.map(i => i.id === editingItemId ? {
-            ...i,
-            title: newItemTitle,
-            description: newItemContent,
-            category: selectedCategoryName, 
-            type: selectedType as any,
-            imageUrl: itemData.image_url || undefined,
+          ...i,
+          title: newItemTitle,
+          description: newItemContent,
+          category: selectedCategoryName,
+          type: selectedType as any,
+          imageUrl: itemData.image_url || undefined,
         } : i));
       } else {
         const insertData = {
@@ -362,7 +362,7 @@ const Dashboard: React.FC = () => {
     const item = items.find(i => i.id === itemId);
     if (!item || !user) return;
     const newStatus = !item.is_completed;
-    
+
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, is_completed: newStatus } : i));
 
     const { error } = await supabase
@@ -370,9 +370,9 @@ const Dashboard: React.FC = () => {
       .update({ is_completed: newStatus })
       .eq('id', itemId)
       .eq('user_id', user.id);
-      
+
     if (error) {
-       setItems(prev => prev.map(i => i.id === itemId ? { ...i, is_completed: !newStatus } : i));
+      setItems(prev => prev.map(i => i.id === itemId ? { ...i, is_completed: !newStatus } : i));
     }
   };
 
@@ -425,11 +425,10 @@ const Dashboard: React.FC = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
-              className={`w-full pl-11 pr-4 h-11 bg-white/[0.03] rounded-full text-[14px] text-white placeholder:text-white/20 outline-none transition-all duration-300 border ${
-                searchFocused
-                  ? 'border-orange-500/30 bg-white/[0.05] shadow-[0_0_0_3px_hsl(24,100%,50%,0.08),0_0_20px_hsl(24,100%,50%,0.06)]'
-                  : 'border-white/[0.04] hover:border-white/[0.08] hover:bg-white/[0.04]'
-              }`}
+              className={`w-full pl-11 pr-4 h-11 bg-white/[0.03] rounded-full text-[14px] text-white placeholder:text-white/20 outline-none transition-all duration-300 border ${searchFocused
+                ? 'border-orange-500/30 bg-white/[0.05] shadow-[0_0_0_3px_hsl(24,100%,50%,0.08),0_0_20px_hsl(24,100%,50%,0.06)]'
+                : 'border-white/[0.04] hover:border-white/[0.08] hover:bg-white/[0.04]'
+                }`}
             />
           </div>
 
@@ -470,11 +469,10 @@ const Dashboard: React.FC = () => {
                           <button
                             key={value}
                             onClick={() => setSelectedType(value)}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[10px] text-[13px] font-medium transition-all duration-200 ${
-                              selectedType === value
-                                ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25'
-                                : 'text-white/35 hover:text-white/60 hover:bg-white/[0.03]'
-                            }`}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[10px] text-[13px] font-medium transition-all duration-200 ${selectedType === value
+                              ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25'
+                              : 'text-white/35 hover:text-white/60 hover:bg-white/[0.03]'
+                              }`}
                           >
                             <Icon size={15} />
                             {label}
@@ -536,7 +534,7 @@ const Dashboard: React.FC = () => {
 
                   {/* Modal Footer */}
                   <div className="px-7 pb-7">
-                    <button 
+                    <button
                       onClick={handleSaveItem}
                       disabled={isSubmitting}
                       className="w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold text-[14px] rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
