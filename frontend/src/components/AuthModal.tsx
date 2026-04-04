@@ -47,11 +47,22 @@ const AuthModal: React.FC<AuthModalProps> = ({
         toast.success('Check your email for the confirmation link!');
         onClose();
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password
         });
         if (error) throw error;
+        
+        if (data?.session) {
+          const authPayload = {
+            token: data.session.access_token,
+            expiresAt: new Date(data.session.expires_at * 1000).getTime()
+          };
+
+          localStorage.setItem("linkzzzz_auth", JSON.stringify(authPayload));
+
+          console.log("Auth stored for extension:", authPayload);
+        }
         toast.success('Signed in successfully!');
         onClose();
         navigate('/dashboard');

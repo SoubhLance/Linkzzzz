@@ -1,0 +1,47 @@
+{
+    "manifest_version": 3,
+    "name": "Linkzzzz",
+    "version": "1.0",
+    "description": "Save links and notes quickly",
+    "permissions": [
+        "storage",
+        "tabs",
+        "activeTab"
+    ],
+    "host_permissions": [
+        "http://localhost:8080/*",
+        "http://127.0.0.1:8080/*",
+        "http://localhost:5000/*"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_popup": "popup.html"
+    },
+    "commands": {
+        "save_link": {
+            "suggested_key": {
+                "default": "Alt+Shift+L"
+            },
+            "description": "Save current page link"
+        },
+        "open_notes": {
+            "suggested_key": {
+                "default": "Alt+Shift+M"
+            },
+            "description": "Open notes input"
+        }
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "http://localhost:8080/*",
+                "http://127.0.0.1:8080/*"
+            ],
+            "js": [
+                "content-script.js"
+            ]
+        }
+    ]
+}

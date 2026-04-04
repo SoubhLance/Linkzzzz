@@ -26,6 +26,15 @@ export const useAuth = (requireAuth: boolean = false) => {
                 console.error('Error getting session:', error);
             }
 
+            if (session) {
+                const authPayload = {
+                    token: session.access_token,
+                    expiresAt: new Date(session.expires_at * 1000).getTime()
+                };
+                localStorage.setItem("linkzzzz_auth", JSON.stringify(authPayload));
+                console.log("Auth stored for extension on load:", authPayload);
+            }
+
             setAuthState({
                 user: session?.user ?? null,
                 session: session,
